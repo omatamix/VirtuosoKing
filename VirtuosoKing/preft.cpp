@@ -54,7 +54,7 @@ void Preft::iterPref(Position pos, Depth curDepth) {
 	int movesSearched = 0;
 	std::vector<Move> allMoves = pos.getAllMoves(pos.curTurn);
 	for (const Move& move : allMoves) {
-	    History oldMoveData = pos.doMove(move);
+		History oldMoveData = pos.doMove(move);
 		if (checked && (move.moveFlag & CASTLE_OO || move.moveFlag & CASTLE_OOO)) {
 			pos.undoMove(oldMoveData, move);
 			continue;

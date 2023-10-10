@@ -13,7 +13,8 @@ enum Color : int {
 enum MoveFlags : int {
     QUIET, BIG_PAWN, CAPTURE, EP_CAPTURE = 4,
     PROMOTION = 8, PROMOTION_CAPTURE = 16,
-    CASTLE_OO = 32, CASTLE_OOO = 64
+    CASTLE_OO = 32, CASTLE_OOO = 64,
+    PRE_GEN_MOVE = 128,
 };
 inline bool isInvalidSquare(int square) {
     return square < 1 || BASE_MAILBOX[square] == -1 || square > 220;
@@ -63,6 +64,9 @@ inline bool isPromotionSquare(int square, int color) {
         return false;
     }
 };
+inline bool isLightSquared(int square) {
+    return (square % 2 == 0);
+}
 inline bool isPawnStartSquare(int square, int team) {
     return team == 1 ? (getRank(square) == 1 || getRank(square) == 12) :
                        (getFile(square) == 2 || getFile(square) == 13);
@@ -82,6 +86,12 @@ struct Move {
     int capturedColor;
     int curPieceIndex;
 };
+struct SmallMove {
+    int from;
+    int to;
+    int promotion;
+    int flags;
+};
 struct History {
     int score;
     int turn;
@@ -93,9 +103,7 @@ struct History {
     bool lastCastleK = false;
     bool lastCastleQ = false;
 };
-constexpr int IMBALANCE_TABLE[8] = { 0, -75, -125, -225, -425, -625, -750, -800, };
-constexpr int MOBILITY_SCORES[7] = { 0, 0, 0, 3, 5, 7, 0 };
-class Position {
+struct Position {
 public:
     int curTurn = 1;
     int posScore = 0;
@@ -121,9 +129,12 @@ public:
     void placePiece(int square, int piece, int color);
     void removePiece(int square);
     bool isOpponentsPiece(int square, int color);
+    int getStaticEvalNew();
     int getStaticEval();
     int getMaterialScore();
 };
+SmallMove decodeMove(uint64_t encoded);
+uint64_t encodeMove(const Move& move);
 std::string getSanMove(Move move);
 std::string getUciMove(Move move);
 void printBoard(Position pos);

@@ -147,142 +147,6 @@ void Position::undoNullMove(HistoryNullMove nullHistory) {
     enpassants[3] = nullHistory.epSquareY;
     enpassants[4] = nullHistory.epSquareG;
 }
-bool Position::inCheck(int color) {
-    return isSquareAttacked(kingTracker[color], color);
-}
-bool Position::isSquareAttacked(int square, int color) {
-    for (int start = 0; start < OFFSETS_NUM[10]; ++start) {
-        int increment = OFFSETS[10][start];
-        for (int n = square + increment; ; n += increment) {
-            if (isInvalidSquare(n)) {
-                break;
-            }
-            int pie = pieceMailbox[n];
-            if (pie != PIECE_ZERO) {
-                if (isOpponentsPiece(n, color)) {
-                    if ((abs(increment) == 16 || abs(increment) == 1) && (pie == ROOK || pie == QUEEN || (pie == KING && n == square + increment))) {
-                        return true;
-                    }
-                    if (pie == PAWN && n == square + increment) {
-                        if (colorMailbox[n] == RED && (increment == 15 || increment == 17)) {
-                            return true;
-                        }  else if (colorMailbox[n] == BLUE && (increment == 15 || increment == -17)) {
-                            return true;
-                        } else if (colorMailbox[n] == YELLOW && (increment == -15 || increment == -17)) {
-                            return true;
-                        } else if (colorMailbox[n] == GREEN && (increment == -15 || increment == 17)) {
-                            return true;
-                        }
-                    }
-                    if ((abs(increment) == 15 || abs(increment) == 17) && (pie == BISHOP || pie == QUEEN || (pie == KING && n == square + increment)))
-                        return true;
-                    if ((abs(increment) == 18 || abs(increment) == 14 || abs(increment) == 31 || abs(increment) == 33) && pie == KNIGHT) {
-                        return true;
-                    }
-                }
-                break;
-            }
-            if ((abs(increment) == 18 || abs(increment) == 14 || abs(increment) == 31 || abs(increment) == 33)) {
-                break;
-            }
-        }
-    }
-    return false;
-}
-std::vector<Move> Position::getAllMoves(int color) {
-    std::vector<Move> moves;
-    int curIndex = -1;
-    for (int s = 4; s < 220; ++s) {
-        if (isInvalidSquare(s)) continue;
-        int pie = pieceMailbox[s];
-        if (colorMailbox[s] == color) {
-            if (pie == PAWN) {
-                int dest = s + OFFSETS[color][0];
-                int CAPTURE_BIT;
-                int NORMAL_BIT;
-                if (isPromotionSquare(dest, color)) {
-                    CAPTURE_BIT = PROMOTION_CAPTURE;
-                    NORMAL_BIT = PROMOTION;
-                }
-                else {
-                    CAPTURE_BIT = CAPTURE;
-                    NORMAL_BIT = QUIET;
-                }
-                if (pieceMailbox[dest] == PIECE_ZERO && !isInvalidSquare(dest)) {
-                    moves.push_back({ s, dest, QUEEN, NORMAL_BIT, PAWN, PIECE_ZERO, PIECE_ZERO, curIndex++ });
-                    dest = dest + OFFSETS[color][0];
-                    if (isPawnStartSquare(s, TEAMS[color]) && pieceMailbox[dest] == PIECE_ZERO) {
-                        moves.push_back({ s, dest, PIECE_ZERO, BIG_PAWN, PAWN, PIECE_ZERO, PIECE_ZERO, curIndex++ });
-                    }
-                }
-                dest = s + OFFSETS[color][1];
-                if (std::find(std::begin(enpassants), std::end(enpassants), dest) != std::end(enpassants)
-                    && enpassants[color] != dest && pieceMailbox[dest] == PIECE_ZERO) {
-                    moves.push_back({ s, dest, PIECE_ZERO, EP_CAPTURE, PAWN, PAWN, colorMailbox[dest], curIndex++ });
-                }
-                if (isOpponentsPiece(dest, color) && !isInvalidSquare(dest)) {
-                    moves.push_back({ s, dest, QUEEN, CAPTURE_BIT, PAWN, pieceMailbox[dest], colorMailbox[dest], curIndex++ });
-                }
-                dest = s + OFFSETS[color][2];
-                if (std::find(std::begin(enpassants), std::end(enpassants), dest) != std::end(enpassants)
-                    && enpassants[color] != dest && pieceMailbox[dest] == PIECE_ZERO) {
-                    moves.push_back({ s, dest, PIECE_ZERO, EP_CAPTURE, PAWN, PAWN, colorMailbox[dest], curIndex++ });
-                }
-                if (isOpponentsPiece(dest, color) && !isInvalidSquare(dest)) {
-                    moves.push_back({ s, dest, QUEEN, CAPTURE_BIT, PAWN, pieceMailbox[dest], colorMailbox[dest], curIndex++ });
-                }
-            } else {
-                for (int start = 0; start < OFFSETS_NUM[pie + 3]; ++start) {
-                    int increment = OFFSETS[pie + 3][start];
-                    for (int n = s + increment; ; n += increment) {
-                        if (isInvalidSquare(n)) {
-                            break;
-                        }
-                        if (pieceMailbox[n] != PIECE_ZERO) {
-                            if (isOpponentsPiece(n, color)) {
-                                curIndex++;
-                                moves.push_back({ s, n, PIECE_ZERO, CAPTURE, pie, pieceMailbox[n], colorMailbox[n], curIndex });
-                            } else if (pieceMailbox[n] == KING) {
-                                if (castleTracker[0][color] && CST_ROOK_LOCATIONS[0][color] + 3 == s) {
-                                    bool passed = true;
-                                    for (const int& keySNBA : CASTLING_CK_SQRSK[color]) {
-                                        if (isSquareAttacked(keySNBA + 3, color)) {
-                                            passed = false;
-                                            break;
-                                        }
-                                    }
-                                    if (passed) {
-                                        curIndex++;
-                                        moves.push_back({ s, n, PIECE_ZERO, CASTLE_OO, pie, PIECE_ZERO, PIECE_ZERO, curIndex });
-                                    }
-                                }
-                                if (castleTracker[1][color] && CST_ROOK_LOCATIONS[1][color] + 3 == s) {
-                                    bool passed = true;
-                                    for (const int& keySNBA : CASTLING_CK_SQRSQ[color]) {
-                                        if (isSquareAttacked(keySNBA + 3, color)) {
-                                            passed = false;
-                                            break;
-                                        }
-                                    }
-                                    if (passed) {
-                                        curIndex++;
-                                        moves.push_back({ s, n, PIECE_ZERO, CASTLE_OOO, pie, PIECE_ZERO, PIECE_ZERO, curIndex });
-                                    }
-                                }
-                            }
-                            break;
-                        } else {
-                            curIndex++;
-                            moves.push_back({ s, n, PIECE_ZERO, QUIET, pie, pieceMailbox[n], colorMailbox[n], curIndex });
-                        }
-                        if (pie == KNIGHT || pie == KING) break;
-                    }
-                }
-            }
-        }
-    }
-    return moves;
-}
 int Position::scoreMove(Move move) {
     int score = 0;
     if (move.moveFlag & EP_CAPTURE) {
@@ -313,8 +177,8 @@ void Position::removePiece(int square) {
     pieceMailbox[square] = PIECE_ZERO;
     colorMailbox[square] = PIECE_ZERO;
 }
-bool Position::isOpponentsPiece(int square, int color) {
-    return !(colorMailbox[square] == color || colorMailbox[square] == PARTNERS[color] || colorMailbox[square] == 0);
+bool isOpponentsPiece(const Position& pos, int square, int color) {
+    return !(pos.colorMailbox[square] == color || pos.colorMailbox[square] == PARTNERS[color] || pos.colorMailbox[square] == 0);
 }
 int Position::getStaticEvalNew() {
     int score = 0;
@@ -480,21 +344,144 @@ int Position::getStaticEval() {
     // }
     return posScore + getRelativeScore(score, curTurn);
 }
-uint64_t encodeMove(const Move& move) {
-    return (static_cast<uint64_t>(getRank(move.from)) << 30) |
-           (static_cast<uint64_t>(getFile(move.from)) << 26) |
-           (static_cast<uint64_t>(getRank(move.to)) << 22) |
-           (static_cast<uint64_t>(getFile(move.to)) << 18) |
-           (static_cast<uint64_t>(move.promotion) << 15) |
-           (static_cast<uint64_t>(move.moveFlag) << 9);
+bool inCheck(const Position& pos, int color) {
+    return isSquareAttacked(pos, pos.kingTracker[color], color);
 }
-SmallMove decodeMove(uint64_t encoded) {
-    SmallMove move;
-    move.from = ((encoded >> 30) & 0xF) * 16 + ((encoded >> 26) & 0xF);
-    move.to = ((encoded >> 22) & 0xF) * 16 + ((encoded >> 18) & 0xF);
-    move.promotion = (encoded >> 15) & 0x7;
-    move.flags = (encoded >> 9) & 0x3F;
-    return move;
+bool isSquareAttacked(const Position& pos, int square, int color) {
+    for (int start = 0; start < OFFSETS_NUM[10]; ++start) {
+        int increment = OFFSETS[10][start];
+        for (int n = square + increment; ; n += increment) {
+            if (isInvalidSquare(n)) {
+                break;
+            }
+            int pie = pos.pieceMailbox[n];
+            if (pie != PIECE_ZERO) {
+                if (isOpponentsPiece(pos, n, color)) {
+                    if ((abs(increment) == 16 || abs(increment) == 1) && (pie == ROOK || pie == QUEEN || (pie == KING && n == square + increment))) {
+                        return true;
+                    }
+                    if (pie == PAWN && n == square + increment) {
+                        if (pos.colorMailbox[n] == RED && (increment == 15 || increment == 17)) return true;
+                        else if (pos.colorMailbox[n] == BLUE && (increment == 15 || increment == -17)) return true;
+                        else if (pos.colorMailbox[n] == YELLOW && (increment == -15 || increment == -17)) return true;
+                        else if (pos.colorMailbox[n] == GREEN && (increment == -15 || increment == 17)) return true;
+                    }
+                    if ((abs(increment) == 15 || abs(increment) == 17) && (pie == BISHOP || pie == QUEEN || (pie == KING && n == square + increment))) {
+                        return true;
+                    }
+                    if ((abs(increment) == 18 || abs(increment) == 14 || abs(increment) == 31 || abs(increment) == 33) && pie == KNIGHT) {
+                        return true;
+                    }
+                }
+                break;
+            }
+            if ((abs(increment) == 18 || abs(increment) == 14 || abs(increment) == 31 || abs(increment) == 33)) {
+                break;
+            }
+        }
+    }
+    return false;
+}
+size_t allocateMoves(const Position& pos, int ply) {
+    int curIndex = 0;
+    const int color = pos.curTurn;
+    for (int square = 4; square < 220; ++square) {
+        if (isInvalidSquare(square)) continue;
+        int pie = pos.pieceMailbox[square];
+        if (pos.colorMailbox[square] == color) {
+            if (pie == PAWN) {
+                int dest = square + OFFSETS[color][0];
+                int CAPTURE_BIT, NORMAL_BIT;
+                if (isPromotionSquare(dest, color)) {
+                    CAPTURE_BIT = PROMOTION_CAPTURE;
+                    NORMAL_BIT = PROMOTION;
+                } else {
+                    CAPTURE_BIT = CAPTURE;
+                    NORMAL_BIT = QUIET;
+                }
+                if (pos.pieceMailbox[dest] == PIECE_ZERO && !isInvalidSquare(dest)) {
+                    Move move{ square, dest, QUEEN, NORMAL_BIT, PAWN, PIECE_ZERO, PIECE_ZERO, curIndex };
+                    allocatedMoves[ply][curIndex++] = move.encode();
+                    dest = dest + OFFSETS[color][0];
+                    if (isPawnStartSquare(square, TEAMS[color]) && pos.pieceMailbox[dest] == PIECE_ZERO) {
+                        Move move{ square, dest, PIECE_ZERO, BIG_PAWN, PAWN, PIECE_ZERO, PIECE_ZERO, curIndex };
+                        allocatedMoves[ply][curIndex++] = move.encode();
+                    }
+                }
+                dest = square + OFFSETS[color][1];
+                if (std::find(std::begin(pos.enpassants), std::end(pos.enpassants), dest) != std::end(pos.enpassants)
+                    && pos.enpassants[color] != dest && pos.pieceMailbox[dest] == PIECE_ZERO) {
+                    Move move{ square, dest, PIECE_ZERO, EP_CAPTURE, PAWN, PAWN, pos.colorMailbox[dest], curIndex };
+                    allocatedMoves[ply][curIndex++] = move.encode();
+                }
+                if (isOpponentsPiece(pos, dest, color) && !isInvalidSquare(dest)) {
+                    Move move{ square, dest, QUEEN, CAPTURE_BIT, PAWN, pos.pieceMailbox[dest], pos.colorMailbox[dest], curIndex };
+                    allocatedMoves[ply][curIndex++] = move.encode();
+                }
+                dest = square + OFFSETS[color][2];
+                if (std::find(std::begin(pos.enpassants), std::end(pos.enpassants), dest) != std::end(pos.enpassants)
+                    && pos.enpassants[color] != dest && pos.pieceMailbox[dest] == PIECE_ZERO) {
+                    Move move{ square, dest, PIECE_ZERO, EP_CAPTURE, PAWN, PAWN, pos.colorMailbox[dest], curIndex };
+                    allocatedMoves[ply][curIndex++] = move.encode();
+                }
+                if (isOpponentsPiece(pos, dest, color) && !isInvalidSquare(dest)) {
+                    Move move{ square, dest, QUEEN, CAPTURE_BIT, PAWN, pos.pieceMailbox[dest], pos.colorMailbox[dest], curIndex };
+                    allocatedMoves[ply][curIndex++] = move.encode();
+                }
+            } else {
+                for (int start = 0; start < OFFSETS_NUM[pie + 3]; ++start) {
+                    int increment = OFFSETS[pie + 3][start];
+                    for (int n = square + increment; ; n += increment) {
+                        if (isInvalidSquare(n)) {
+                            break;
+                        }
+                        if (pos.pieceMailbox[n] != PIECE_ZERO) {
+                            if (isOpponentsPiece(pos, n, color)) {
+                                Move move{ square, n, PIECE_ZERO, CAPTURE, pie, pos.pieceMailbox[n], pos.colorMailbox[n], curIndex };
+                                allocatedMoves[ply][curIndex++] = move.encode();
+                            } else if (pos.pieceMailbox[n] == KING) {
+                                if (pos.castleTracker[0][color] && CST_ROOK_LOCATIONS[0][color] + 3 == square) {
+                                    bool passed = true;
+                                    for (const int& keySNBA : CASTLING_CK_SQRSK[color]) {
+                                        if (isSquareAttacked(pos, keySNBA + 3, color)) {
+                                            passed = false;
+                                            break;
+                                        }
+                                    }
+                                    if (passed) {
+                                        Move move{ square, n, PIECE_ZERO, CASTLE_OO, pie, PIECE_ZERO, PIECE_ZERO, curIndex };
+                                        allocatedMoves[ply][curIndex++] = move.encode();
+                                    }
+                                }
+                                if (pos.castleTracker[1][color] && CST_ROOK_LOCATIONS[1][color] + 3 == square) {
+                                    bool passed = true;
+                                    for (const int& keySNBA : CASTLING_CK_SQRSQ[color]) {
+                                        if (isSquareAttacked(pos, keySNBA + 3, color)) {
+                                            passed = false;
+                                            break;
+                                        }
+                                    }
+                                    if (passed) {
+                                        Move move{ square, n, PIECE_ZERO, CASTLE_OOO, pie, PIECE_ZERO, PIECE_ZERO, curIndex };
+                                        allocatedMoves[ply][curIndex++] = move.encode();
+                                    }
+                                }
+                            }
+                            break;
+                        } else {
+                            Move move{ square, n, PIECE_ZERO, QUIET, pie, pos.pieceMailbox[n], pos.colorMailbox[n], curIndex };
+                            allocatedMoves[ply][curIndex++] = move.encode();
+                        }
+                        if (pie == KNIGHT || pie == KING) break;
+                    }
+                }
+            }
+        }
+    }
+    return static_cast<size_t>(curIndex);
+}
+void getAllocatedMove(uint64_t& encodedMove, int ply, int curIndex) {
+    encodedMove = allocatedMoves[ply][curIndex];
 }
 int Position::getMaterialScore() {
     int score = 0;

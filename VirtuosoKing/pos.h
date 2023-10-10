@@ -77,14 +77,36 @@ struct HistoryNullMove {
     int epSquareY; int epSquareG;
 };
 struct Move {
-    int from;
-    int to;
-    int promotion;
-    int moveFlag;
-    int moved;
-    int capturedPiece;
-    int capturedColor;
-    int curPieceIndex;
+    int from;          // ranges from 0 to 224.
+    int to;            // ranges from 0 to 224.
+    int promotion;     // ranges from 0 to 6.
+    int moveFlag;      // ranges from 0 to 64.
+    int moved;         // ranges from 0 to 6.
+    int capturedPiece; // ranges from 0 to 6;
+    int capturedColor; // ranges from 0 to 4;
+    int curPieceIndex; // ranges from 0 to 256;
+    uint64_t encode() const {
+        uint64_t encoded = 0;
+        encoded |= static_cast<uint64_t>(from);
+        encoded |= static_cast<uint64_t>(to) << 8;
+        encoded |= static_cast<uint64_t>(promotion) << 16;
+        encoded |= static_cast<uint64_t>(moveFlag) << 19;
+        encoded |= static_cast<uint64_t>(moved) << 26;
+        encoded |= static_cast<uint64_t>(capturedPiece) << 29;
+        encoded |= static_cast<uint64_t>(capturedColor) << 32;
+        encoded |= static_cast<uint64_t>(curPieceIndex) << 35;
+        return encoded;
+    }
+    void decode(uint64_t value) {
+        from = value & 0xFF;
+        to = (value >> 8) & 0xFF;
+        promotion = (value >> 16) & 0x7;
+        moveFlag = (value >> 19) & 0x7F;
+        moved = (value >> 26) & 0x7;
+        capturedPiece = (value >> 29) & 0x7;
+        capturedColor = (value >> 32) & 0x7;
+        curPieceIndex = (value >> 35) & 0x1FF;
+    }
 };
 struct SmallMove {
     int from;
@@ -121,20 +143,18 @@ public:
     void undoMove(History historyOfPosition, Move move);
     HistoryNullMove doNullMove();
     void undoNullMove(HistoryNullMove nullHistory);
-    bool inCheck(int color);
-    bool isSquareAttacked(int square, int color);
-    std::vector<Move> getAllMoves(int color);
     int scoreMove(Move move);
     void initBaseGlobalVar();
     void placePiece(int square, int piece, int color);
     void removePiece(int square);
-    bool isOpponentsPiece(int square, int color);
     int getStaticEvalNew();
     int getStaticEval();
     int getMaterialScore();
 };
-SmallMove decodeMove(uint64_t encoded);
-uint64_t encodeMove(const Move& move);
+bool inCheck(const Position& pos, int color);
+bool isSquareAttacked(const Position& pos, int square, int color);
+size_t allocateMoves(const Position& pos, int ply);
+void getAllocatedMove(uint64_t& encodedMove, int ply, int curIndex);
 std::string getSanMove(Move move);
 std::string getUciMove(Move move);
 void printBoard(Position pos);

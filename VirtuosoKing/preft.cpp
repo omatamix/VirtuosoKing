@@ -44,7 +44,7 @@ void Preft::preftFen(Parser parser, std::string fen, Depth preftDepth) {
 }
 void Preft::iterPref(Position pos, Depth curDepth) {
 	nodesSearched++;
-	bool checked = pos.inCheck(pos.curTurn);
+	bool checked = inCheck(pos, pos.curTurn);
 	if (checked) {
 		checksNum++;
 	}
@@ -52,50 +52,54 @@ void Preft::iterPref(Position pos, Depth curDepth) {
 		return;
 	}
 	int movesSearched = 0;
-	std::vector<Move> allMoves = pos.getAllMoves(pos.curTurn);
-	for (const Move& move : allMoves) {
-		History oldMoveData = pos.doMove(move);
-		if (checked && (move.moveFlag & CASTLE_OO || move.moveFlag & CASTLE_OOO)) {
-			pos.undoMove(oldMoveData, move);
+	Move searchedMove;
+	uint64_t encodedMove;
+	size_t moveSize = allocateMoves(pos, static_cast<int>(curDepth));
+	for (size_t index = 0; index < moveSize; ++index) {
+		getAllocatedMove(encodedMove, static_cast<int>(curDepth), static_cast<int>(index));
+		searchedMove.decode(encodedMove);
+		History oldMoveData = pos.doMove(searchedMove);
+		if (checked && (searchedMove.moveFlag & CASTLE_OO || searchedMove.moveFlag & CASTLE_OOO)) {
+			pos.undoMove(oldMoveData, searchedMove);
 			continue;
 		}
-		if (move.capturedPiece == KING) {
+		if (searchedMove.capturedPiece == KING) {
 			movesSearched++;
 			nodesSearched++;
 			checkmatesNum++;
-			pos.undoMove(oldMoveData, move);
+			pos.undoMove(oldMoveData, searchedMove);
 			continue;
 		}
-		if (pos.inCheck(oldMoveData.turn)) {
-			pos.undoMove(oldMoveData, move);
+		if (inCheck(pos, oldMoveData.turn)) {
+			pos.undoMove(oldMoveData, searchedMove);
 			continue;
 		}
 		movesSearched++;
-		if (move.moveFlag & CAPTURE) {
-			if (move.moved == PAWN) {
+		if (searchedMove.moveFlag & CAPTURE) {
+			if (searchedMove.moved == PAWN) {
 				normalPawnCaptures++;
 			} else {
 				regularCaptures++;
 			}
-		} else if (move.moveFlag & BIG_PAWN) {
+		} else if (searchedMove.moveFlag & BIG_PAWN) {
 			bigPawnMoves++;
-		} else if (move.moveFlag & EP_CAPTURE) {
+		} else if (searchedMove.moveFlag & EP_CAPTURE) {
 			enpssantPawnCaptures++;
-		} else if (move.moveFlag & PROMOTION) {
+		} else if (searchedMove.moveFlag & PROMOTION) {
 			normalPromotionMoves++;
-		} else if (move.moveFlag & PROMOTION_CAPTURE) {
+		} else if (searchedMove.moveFlag & PROMOTION_CAPTURE) {
 			capturePromotionMoves++;
-		} else if (move.moveFlag & CASTLE_OO) {
+		} else if (searchedMove.moveFlag & CASTLE_OO) {
 			kingsideCastlingMoves++;
-		} else if (move.moveFlag & CASTLE_OOO) {
+		} else if (searchedMove.moveFlag & CASTLE_OOO) {
 			queensideCastlingMoves++;
-		} else if (move.moved == PAWN) {
+		} else if (searchedMove.moved == PAWN) {
 			normalPawnMoves++;
 		} else {
 			quietMoves++;
 		}
 		iterPref(pos, curDepth-1);
-		pos.undoMove(oldMoveData, move);
+		pos.undoMove(oldMoveData, searchedMove);
 	}
 	if (movesSearched == 0) {
 		if (checked) {

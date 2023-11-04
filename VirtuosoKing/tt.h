@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 constexpr int VALUE_NONE = -321114;
@@ -31,11 +32,13 @@ public:
     TranspositionTable& operator=(TranspositionTable&&) noexcept = default;
     const HashTableEntry* get(uint64_t key) const;
     void save(uint64_t key, int depth, uint64_t move, int score, int eval, ScoreBound bound, int isPv);
+    int hashfull() const;
     void clear();
     void newSearch();
     ~TranspositionTable() = default;
 private:
     size_t table_size_;
+    size_t used_entries_ = 0;
     std::vector<HashTableEntry> hash_table_;
     unsigned currentGeneration;
 };

@@ -12,6 +12,7 @@ void TranspositionTable::save(uint64_t key, int depth, uint64_t move, int score,
     HashTableEntry& entry = hash_table_[n];
     if (entry.key == 0 || entry.generation < currentGeneration ||
        (entry.generation == currentGeneration && entry.depth < depth)) {
+        used_entries_++;
         entry.key = key;
         entry.depth = depth;
         entry.move = move;
@@ -22,8 +23,13 @@ void TranspositionTable::save(uint64_t key, int depth, uint64_t move, int score,
         entry.generation = currentGeneration;
     }
 }
+int TranspositionTable::hashfull() const {
+    return static_cast<int>(std::round((static_cast<double>(used_entries_) /
+           static_cast<double>(table_size_)) * 1000.0));
+}
 void TranspositionTable::clear() {
     std::fill(hash_table_.begin(), hash_table_.end(), HashTableEntry{});
+    used_entries_ = 0;
 }
 void TranspositionTable::newSearch() {
     currentGeneration++;

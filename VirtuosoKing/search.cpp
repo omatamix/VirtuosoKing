@@ -133,7 +133,8 @@ void Search::getBestMove(Position pos, TimeParams timeParams) {
             std::cout << "info depth " << depth
                       << " nodes " << nodeCounter
                       << " nps " << nps
-                      << " time " << timeSoFar << std::endl;
+                      << " time " << timeSoFar
+                      << " hashfull " << transpositionTable->hashfull() << std::endl;
             break;
         }
         if (!isStop) {
@@ -146,6 +147,7 @@ void Search::getBestMove(Position pos, TimeParams timeParams) {
                       << " score ";
             calculateDistanceToMate(score);
             std::cout << " time " << timeSoFar
+                      << " hashfull " << transpositionTable->hashfull()
                       << " pv " << getPvLine(pvLineInLoop) << std::endl;
             bestMoveForPos = pvLineInLoop.pv[0];
             bestScoreOverall = score;

@@ -28,9 +28,16 @@ uint64_t getTimeElapsed(ChessTime startTime) {
         <std::chrono::milliseconds>(endTime - startTime);
     return (uint64_t)timeSpan.count() + 1;
 }
+bool isPonderSearch = false;
 size_t hashSize = DEFAULT_TT_SIZE;
 void setHashSize(size_t hashSizeToSet) {
     hashSize = hashSizeToSet;
+}
+void startPonder() {
+    isPonderSearch = true;
+}
+void stopPonder() {
+    isPonderSearch = false;
 }
 int lmrReductions[MAX_MOVES][MAX_MOVES];
 int currentPly = 0;
@@ -102,6 +109,7 @@ int Search::seeCapture(Position pos, Move captureMove) {
 }
 void Search::getBestMove(Position pos, TimeParams timeParams) {
     uint64_t timeSoFar, bestMove = INVALID_DATA;
+    Move ponderMove{};
     nodeCounter = curPly = 0;
     int previousScore = 0;
     int alpha, beta, bestMoveIndex = -1;
@@ -126,10 +134,10 @@ void Search::getBestMove(Position pos, TimeParams timeParams) {
         uint64_t nps = 1000 * nodeCounter / timeSoFar;
         if (bestMoveIndex == -1) {
             std::cout << "info depth " << depth
-                      << " nodes " << nodeCounter
-                      << " nps " << nps
-                      << " time " << timeSoFar
-                      << " hashfull " << transpositionTable->hashfull() << std::endl;
+                << " nodes " << nodeCounter
+                << " nps " << nps
+                << " time " << timeSoFar
+                << " hashfull " << transpositionTable->hashfull() << std::endl;
             break;
         }
         if (!isStop) {
@@ -144,38 +152,50 @@ void Search::getBestMove(Position pos, TimeParams timeParams) {
             std::cout << " time " << timeSoFar
                       << " hashfull " << transpositionTable->hashfull()
                       << " pv " << getPvLine(pvLineInLoop) << std::endl;
+            if (pvLineInLoop.pvLength > 1) {
+                ponderMove = pvLineInLoop.pv[1];
+            }
             bestMoveForPos = pvLineInLoop.pv[0];
             bestScoreOverall = score;
         }
         previousScore = score;
         if ((MATE_THRESHOLD < previousScore || -MATE_THRESHOLD > previousScore)) break;
-        if (timeParams.searchMode == MOVETIME) {
-            if (extensionDepth >= 16) {
-                break;
-            } else if (extensionDepth >= 21 && timeSoFar > (uint64_t)timeParams.allotment - 9000) {
-                break;
-            } else if (extensionDepth >= 17 && timeSoFar > (uint64_t)timeParams.allotment - 3000) {
-                break;
-            } else if (extensionDepth >= 14 && timeSoFar > (uint64_t)timeParams.allotment + 3000) {
-                break;
-            } else if (extensionDepth >= 8 && timeSoFar > (uint64_t)timeParams.allotment + 7000) {
-                break;
-            } else if (extensionDepth < 8 && timeSoFar > (uint64_t)timeParams.allotment + 11000) {
+        if (!isPonderSearch) {
+            if (timeParams.searchMode == MOVETIME) {
+                if (extensionDepth >= 16) {
+                    break;
+                } else if (extensionDepth >= 21 && timeSoFar > (uint64_t)timeParams.allotment - 9000) {
+                    break;
+                } else if (extensionDepth >= 17 && timeSoFar > (uint64_t)timeParams.allotment - 3000) {
+                    break;
+                } else if (extensionDepth >= 14 && timeSoFar > (uint64_t)timeParams.allotment + 3000) {
+                    break;
+                } else if (extensionDepth >= 8 && timeSoFar > (uint64_t)timeParams.allotment + 7000) {
+                    break;
+                } else if (extensionDepth < 8 && timeSoFar > (uint64_t)timeParams.allotment + 11000) {
+                    break;
+                }
+            }
+            // if (timeParams.searchMode == MOVETIME && timeSoFar > (uint64_t)timeParams.allotment);
+            if ((timeParams.searchMode == DEPTH && depth >= timeParams.allotment) ||
+                (timeParams.limitNodes && timeParams.maxNodes < nodeCounter) || isStop) {
                 break;
             }
         }
-        // if (timeParams.searchMode == MOVETIME && timeSoFar > (uint64_t)timeParams.allotment);
-        if ((timeParams.searchMode == DEPTH && depth >= timeParams.allotment) ||
-            (timeParams.limitNodes && timeParams.maxNodes < nodeCounter) || isStop) {
-            break;
-        }
         maxDepthReached = depth;
+    }
+    while (isPonderSearch && !isStop) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     stopSignal = true;
     isStop = true;
     Move decoded{};
     decoded.decode(bestMove);
-    std::cout << "bestmove " << getUciMove(decoded) << std::endl;
+    if (ponderMove.curPieceIndex == -1) {
+        std::cout << "bestmove " << getSanMove(decoded) << std::endl;
+    } else {
+        std::cout << "bestmove " << getSanMove(decoded) << " ponder " << getSanMove(ponderMove) << std::endl;
+    }
     std::cout << "search complete" << std::endl;
 }
 int Search::searchPVS(Position pos, SearchStackInfo* stack, int depth, int alpha,
@@ -318,7 +338,7 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
         alpha = -MATE_SCORE + stack->ply;
         if (beta <= -MATE_SCORE + stack->ply) return -MATE_SCORE + stack->ply;
     }
-    if ((MAX_MOVES - 1 > stack->ply) || ((nodeCounter & 1023) == 1023)) {
+    if ((MAX_MOVES - 1 > stack->ply) || ((nodeCounter & 1023) == 1023) && !isPonderSearch) {
         uint64_t timeSoFar = getTimeElapsed(_startTime);
         if (extensionDepth > 20) {
             isStop = true;
@@ -602,7 +622,7 @@ int Search::qsearch(Position pos, SearchStackInfo* stack, int alpha, int beta, i
         if (beta <= -MATE_SCORE + stack->ply) return -MATE_SCORE + stack->ply;
     }
     // Check to see if we have ran out of time.
-    if ((MAX_MOVES - 1 > stack->ply) || ((nodeCounter & 1023) == 1023)) {
+    if ((MAX_MOVES - 1 > stack->ply) || ((nodeCounter & 1023) == 1023) && !isPonderSearch) {
         uint64_t timeSoFar = getTimeElapsed(_startTime);
         if (extensionDepth > 20) {
             isStop = true;

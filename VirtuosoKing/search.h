@@ -86,6 +86,8 @@ struct SearchStackInfo {
 	int cutoffCnt = 0;
 	bool ttPv = false;
 };
+void startPonder();
+void stopPonder();
 void setHashSize(size_t hashSizeToSet);
 uint64_t getTimeElapsed(ChessTime startTime);
 void initReductionTable();

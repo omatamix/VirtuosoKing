@@ -33,7 +33,9 @@ int main(int argc, char** argv) {
     while (getline(std::cin, input)) {
         inputVector = split(input, ' ');
         std::cin.clear();
-        if (!isStop && input != "stop" && input != "quit") {
+        if (!isStop && input != "stop" &&
+                       input != "quit" &&
+                       input != "ponderhit") {
             continue;
         }
         if (input == "uci") {
@@ -41,6 +43,7 @@ int main(int argc, char** argv) {
             std::cout << "id author " << author << std::endl;
             std::cout << "option name hash type spin default " << DEFAULT_TT_SIZE
                       << " min " << MIN_TT_SIZE << " max " << MAX_TT_SIZE << std::endl;
+            std::cout << "option name ponder type check default false" << std::endl;
             std::cout << "uciok" << std::endl;
         } else if (input == "isready") {
             std::cout << "readyok" << std::endl;
@@ -102,11 +105,12 @@ int main(int argc, char** argv) {
             }
         } else if (input.substr(0, 2) == "go" && isStop) {
             std::vector<std::string>::iterator it;
-            if (input.find("ponder") != std::string::npos) {
-                // nothing yet.
-            }
             TimeParams timeParams;
-            if (input.find("movetime") != std::string::npos && inputVector.size() > 2) {
+            if (input.find("ponder") != std::string::npos) {
+                startPonder();
+                timeParams.searchMode = DEPTH;
+                timeParams.allotment = PIECE_ZERO;
+            } else if (input.find("movetime") != std::string::npos && inputVector.size() > 2) {
                 timeParams.searchMode = MOVETIME;
                 timeParams.isShortSearch = false;
                 it = find(inputVector.begin(), inputVector.end(), "movetime");
@@ -136,12 +140,14 @@ int main(int argc, char** argv) {
             if (searchThread.joinable()) searchThread.join();
             searchThread = std::thread(&Search::getBestMove, &search, basePos, timeParams);
         } else if (input == "ponderhit") {
-            // nothing yet.
+            stopPonder();
         } else if (input == "stop") {
+            stopPonder();
             isStop = true;
             stopSignal = true;
             if (searchThread.joinable()) searchThread.join();
         } else if (input == "quit") {
+            stopPonder();
             isStop = true;
             stopSignal = true;
             if (searchThread.joinable()) searchThread.join();
@@ -155,6 +161,8 @@ int main(int argc, char** argv) {
                     if (hashSize < MIN_TT_SIZE) hashSize = MIN_TT_SIZE;
                     if (hashSize > MAX_TT_SIZE) hashSize = MAX_TT_SIZE;
                     setHashSize(hashSize);
+                } else if (inputVector.at(2) == "ponder") {
+                    // do nothing
                 } else std::cout << "info string Invalid option." << std::endl;
             }
         }

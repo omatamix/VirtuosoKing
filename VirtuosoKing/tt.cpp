@@ -7,7 +7,8 @@ const HashTableEntry* TranspositionTable::get(uint64_t key) const {
     }
     return nullptr;
 }
-void TranspositionTable::save(uint64_t key, int depth, uint64_t move, int score, int eval, ScoreBound bound, int isPv) {
+void TranspositionTable::save(uint64_t key, int depth, uint64_t move, int score, int eval,
+    ScoreBound bound, int isPv) {
     size_t n = key & (table_size_ - 1);
     HashTableEntry& entry = hash_table_[n];
     if (entry.key == 0 || entry.generation < currentGeneration ||

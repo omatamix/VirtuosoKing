@@ -23,7 +23,8 @@ class TranspositionTable {
 public:
     explicit TranspositionTable(size_t table_size)
         : table_size_(table_size), hash_table_(table_size), currentGeneration(0) {
-        assert(table_size_ && !(table_size_ & (table_size_ - 1)) && "table_size_ should be a power of two");
+        assert(table_size_ && !(table_size_ & (table_size_ - 1)) &&
+            "table_size_ should be a power of two");
         assert(table_size_ > 0 && "transposition table_size = 0");
     }
     TranspositionTable(const TranspositionTable&) = delete;
@@ -31,7 +32,8 @@ public:
     TranspositionTable(TranspositionTable&&) noexcept = default;
     TranspositionTable& operator=(TranspositionTable&&) noexcept = default;
     const HashTableEntry* get(uint64_t key) const;
-    void save(uint64_t key, int depth, uint64_t move, int score, int eval, ScoreBound bound, int isPv);
+    void save(uint64_t key, int depth, uint64_t move, int score, int eval,\
+        ScoreBound bound, int isPv);
     int hashfull() const;
     void clear();
     void newSearch();

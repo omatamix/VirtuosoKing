@@ -64,15 +64,6 @@ inline bool isPromotionSquare(int square, int color) {
         return false;
     }
 };
-constexpr int MOBILITY_SCORES[7] = {
-    0, 0, 1, 2, 3, 4, 0
-};
-constexpr int MOBILITY_SCORES_NEW[7] = {
-    0, 0, 1, 2, 3, 4, 0
-};
-constexpr int NO_PIECES_LEFT_PENALTY = -675;
-constexpr int ONE_PIECE_LEFT_PENALTY = -225;
-
 inline bool isLightSquared(int square) {
     return (square % 2 == 0);
 }

@@ -3,6 +3,14 @@
 constexpr int SQUARE_CNT = 224;
 constexpr int MATERIAL_SCORES_MG[7] = { 0, 55,  295, 375, 525, 1345, MATE_SCORE };
 constexpr int MATERIAL_SCORES_EG[7] = { 0, 110, 295, 350, 500, 1575, MATE_SCORE };
+constexpr int MOBILITY_SCORES[7] = {
+    0, 0, 1, 2, 3, 4, 0
+};
+constexpr int MOBILITY_SCORES_NEW[7] = {
+    0, 0, 1, 2, 3, 4, 0
+};
+constexpr int NO_PIECES_LEFT_PENALTY = -675;
+constexpr int ONE_PIECE_LEFT_PENALTY = -225;
 constexpr int LAZY_EVAL_THRESHOLD_MG = 675;
 constexpr int LAZY_EVAL_THRESHOLD_EG = 1655;
 constexpr int KNIGHT_BACKRANK_PST[SQUARE_CNT] = {

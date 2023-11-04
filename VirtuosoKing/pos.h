@@ -174,8 +174,6 @@ public:
     void undoNullMove(HistoryNullMove nullHistory);
     int scoreMove(Move move);
     void initBaseGlobalVar();
-    void placePiece(int square, int piece, int color);
-    void removePiece(int square);
     int getMaterialScore();
 };
 GamePhase getCurrentGamePhase();

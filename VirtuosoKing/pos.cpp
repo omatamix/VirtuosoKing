@@ -202,14 +202,6 @@ void Position::initBaseGlobalVar() {
     for (int i = 0; i < 5; ++i) kingTracker[i] = 0;
     for (int i = 0; i < 5; ++i) enpassants[i] = 0;
 }
-void Position::placePiece(int square, int piece, int color) {
-    pieceMailbox[square] = piece;
-    colorMailbox[square] = color;
-}
-void Position::removePiece(int square) {
-    pieceMailbox[square] = PIECE_ZERO;
-    colorMailbox[square] = PIECE_ZERO;
-}
 bool isOpponentsPiece(const Position& pos, int square, int color) {
     return !(pos.colorMailbox[square] == color || pos.colorMailbox[square] == PARTNERS[color] || pos.colorMailbox[square] == 0);
 }

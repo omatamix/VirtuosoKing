@@ -112,5 +112,4 @@ constexpr int MAX_EXTENSION_MOVE_COUNT = 7;
 constexpr Depth DEPTH_ZERO = 0;
 constexpr uint64_t ONE_SECOND = 1000;
 constexpr uint64_t MAX_TIME = (1ULL << 63) - 1;
-constexpr int TT_MAX_SIZE = 10000000;
 constexpr int FUTILITY_MARGIN = 168;

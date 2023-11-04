@@ -11,7 +11,6 @@ constexpr int MOVE_GREAT_MOVE       =  (1 << 11);
 constexpr int MOVE_QUIET            = -(1 << 16);
 constexpr int INVALID_SCORE = -99999;
 constexpr int MATE_THRESHOLD = 89999;
-constexpr size_t MAX_TT_SIZE = 10000000;
 constexpr int DEFAULT_ASPIRATION_WIDTH = 50;
 constexpr int MULTI_CUT_REDUCTION = 3;
 constexpr int MULTICUT_MAX_MOVES_SEARCHING = 4;
@@ -87,15 +86,14 @@ struct SearchStackInfo {
 	int cutoffCnt = 0;
 	bool ttPv = false;
 };
+void setHashSize(size_t hashSizeToSet);
 uint64_t getTimeElapsed(ChessTime startTime);
 void initReductionTable();
-void initTranspositionTable();
 void initTranspositionKeyHandler();
 std::string getPvLine(SearchPV pvLine);
 uint64_t computeHash(Position pos);
 void clearHistoryScores(bool decayScores);
 void resetKillers();
-void clearTranspositionTables();
 void calculateDistanceToMate(int score);
 struct Search {
 	bool isTester = false;
@@ -110,9 +108,11 @@ struct Search {
 	int _selDepth = 0;
     int aspirationWidth = DEFAULT_ASPIRATION_WIDTH;
 	Search() {
+		initTTTable();
 		clearHistoryScores(false);
 		resetKillers();
 	}
+	void initTTTable();
 	int see(Position pos, int square);
 	int seeCapture(Position pos, Move captureMove);
 	static int scoreMove(const Move& currentOrNext);

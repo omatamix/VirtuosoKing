@@ -15,9 +15,6 @@
 std::atomic<bool> isStop(true);
 std::atomic<bool> stopSignal(true);
 std::unique_ptr<TranspositionTable> transpositionTable;
-void initTranspositionTable() {
-    transpositionTable = std::make_unique<TranspositionTable>(MAX_TT_SIZE);
-}
 uint64_t transpositionRandTable[5][224][24];
 void initTranspositionKeyHandler() {
     for (int i = 0; i < 5; ++i)
@@ -30,6 +27,10 @@ uint64_t getTimeElapsed(ChessTime startTime) {
     std::chrono::milliseconds timeSpan = std::chrono::duration_cast
         <std::chrono::milliseconds>(endTime - startTime);
     return (uint64_t)timeSpan.count() + 1;
+}
+size_t hashSize = DEFAULT_TT_SIZE;
+void setHashSize(size_t hashSizeToSet) {
+    hashSize = hashSizeToSet;
 }
 int lmrReductions[MAX_MOVES][MAX_MOVES];
 int currentPly = 0;
@@ -70,15 +71,15 @@ void clearHistoryScores(bool decayScores) {
         }
     }
 }
-void clearTranspositionTables() {
-    transpositionTable->clear();
-}
 void initReductionTable() {
     for (int d = 0; d < MAX_MOVES; d++) {
         for (int m = 0; m < MAX_MOVES; m++) {
             lmrReductions[d][m] = 1.25 + log(d) * log(m) * 100 / 267;
         }
     }
+}
+void Search::initTTTable() {
+    transpositionTable = std::make_unique<TranspositionTable>(hashSize);
 }
 int Search::see(Position pos, int square) {
     const int color = pos.curTurn;

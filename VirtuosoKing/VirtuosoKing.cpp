@@ -11,15 +11,14 @@
 #include "pos.h"
 #include "preft.h"
 #include "search.h"
+#include "tt.h"
 extern std::atomic<bool> isStop;
 extern std::atomic<bool> stopSignal;
 std::vector<std::string> split(const std::string& s, char d);
 void setFenToSearch(std::string fen, Parser& parser, Position& basePos);
 int main(int argc, char** argv) {
     initReductionTable();
-    initTranspositionTable();
     initTranspositionKeyHandler();
-    Search search;
     std::string input;
     std::vector<std::string> inputVector;
     std::string name = "VirtuosoKing";
@@ -40,6 +39,9 @@ int main(int argc, char** argv) {
         if (input == "uci") {
             std::cout << "id name " << name << " " << version << std::endl;
             std::cout << "id author " << author << std::endl;
+            std::cout << "option name hash type spin default " << DEFAULT_TT_SIZE
+                      << " min " << MIN_TT_SIZE << " max " << MAX_TT_SIZE << std::endl;
+            std::cout << "uciok" << std::endl;
         } else if (input == "isready") {
             std::cout << "readyok" << std::endl;
         } else if (input == "ucinewgame") {
@@ -129,11 +131,10 @@ int main(int argc, char** argv) {
                 timeParams.searchMode = DEPTH;
                 timeParams.allotment = MAX_SEARCH_DEPTH;
             }
-            isStop = false;
-            stopSignal = false;
+            Search search;
+            stopSignal = isStop = false;
             if (searchThread.joinable()) searchThread.join();
-            search.getBestMove(basePos, timeParams);
-            // searchThread = std::thread(&Search::getBestMove, &search, basePos, timeParams);
+            searchThread = std::thread(&Search::getBestMove, &search, basePos, timeParams);
         } else if (input == "ponderhit") {
             // nothing yet.
         } else if (input == "stop") {
@@ -149,7 +150,12 @@ int main(int argc, char** argv) {
             if (inputVector.at(1) != "name" || inputVector.at(3) != "value") {
                 std::cout << "info string Invalid option format." << std::endl;
             } else {
-                std::cout << "info string Invalid option." << std::endl;
+                if (inputVector.at(2) == "hash") {
+                    size_t hashSize = static_cast<size_t>(std::stoi(inputVector.at(4)));
+                    if (hashSize < MIN_TT_SIZE) hashSize = MIN_TT_SIZE;
+                    if (hashSize > MAX_TT_SIZE) hashSize = MAX_TT_SIZE;
+                    setHashSize(hashSize);
+                } else std::cout << "info string Invalid option." << std::endl;
             }
         }
     }

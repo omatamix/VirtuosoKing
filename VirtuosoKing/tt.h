@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <vector>
 constexpr int VALUE_NONE = -321114;
+constexpr size_t MIN_TT_SIZE = 160;
+constexpr size_t MAX_TT_SIZE = 10000000;
+constexpr size_t DEFAULT_TT_SIZE = 500000;
 enum ScoreBound {
     EXACT,      // The score is exact.
     UPPERBOUND, // The score is an upper bound.

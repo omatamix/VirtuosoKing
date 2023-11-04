@@ -82,6 +82,19 @@ void Parser::parseFen(std::string fen) {
         fen.erase(0, pos + delimiter.length());
     }
 }
+void Parser::getSqaures(int& square, int& other, std::string uciMove) {
+    uciMove += "-";
+    int length = 1;
+    if (isdigit(uciMove.at(2))) length = 2;
+    int file = sqConv[uciMove.at(0)];
+    int rank = abs(std::stoi(uciMove.substr(1, length)) - 14);
+    square = rank * 16 + file;
+    int other_length = 1;
+    if (isdigit(uciMove.at(length + 3))) other_length = 2;
+    file = sqConv[uciMove.at(length + 1)];
+    rank = abs(std::stoi(uciMove.substr(length + 2, other_length)) - 14);
+    other = rank * 16 + file;
+}
 void Parser::initParser() {
     sqConv['a'] = 1;  sqConv['b'] = 2;  sqConv['c'] = 3;
     sqConv['d'] = 4;  sqConv['e'] = 5;  sqConv['f'] = 6;

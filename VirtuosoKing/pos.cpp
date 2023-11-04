@@ -4,6 +4,7 @@
 #include <map>
 #include "pos.h"
 #include "eval.h"
+GamePhase curGamePase = OPENING;
 uint64_t allocatedMoves[MAX_MOVES][MAX_MOVES];
 void Position::setPosData(int nxtCol, int col[224], int pie[224], int ep[5],
     bool cstSc[2][5], int kt[5], int ps, bool setMaterialScore) {
@@ -150,14 +151,49 @@ void Position::undoNullMove(HistoryNullMove nullHistory) {
 int Position::scoreMove(Move move) {
     int score = 0;
     if (move.moveFlag & EP_CAPTURE) {
-        score += MATERIAL_SCORES[PAWN];
+        score += MATERIAL_SCORES_MG[PAWN];
     }
     if (move.moveFlag & CAPTURE || move.moveFlag & PROMOTION_CAPTURE) {
-        score += MATERIAL_SCORES[move.capturedPiece];
+        score += MATERIAL_SCORES_MG[move.capturedPiece];
     }
     if (move.moveFlag & PROMOTION || move.moveFlag & PROMOTION_CAPTURE) {
-        score += MATERIAL_SCORES[move.promotion];
-        score -= MATERIAL_SCORES[move.moved];
+        score += MATERIAL_SCORES_MG[move.promotion];
+        score -= MATERIAL_SCORES_MG[move.moved];
+    }
+    if (move.moved == KNIGHT) {
+        score -= KNIGHT_BACKRANK_PST[move.from];
+        score += KNIGHT_BACKRANK_PST[move.to];
+    }
+    if (move.capturedPiece == KNIGHT) {
+        score += KNIGHT_BACKRANK_PST[move.to];
+    }
+    if (move.moved == PAWN && (curGamePase == OPENING || curGamePase == MIDDLEGAME)) {
+        score -= PAWN_STRUCT_PST_TABLE_OPENING[O_TEAMS[curTurn]][move.from];
+        score += PAWN_STRUCT_PST_TABLE_OPENING[O_TEAMS[curTurn]][move.to];
+    }
+    if (move.capturedPiece == PAWN) {
+        if (pieceMailbox[move.to] != PIECE_ZERO) {
+            score += PAWN_STRUCT_PST_TABLE_OPENING[O_TEAMS[move.capturedColor]][move.to];
+        } else {
+            score += PAWN_STRUCT_PST_TABLE_OPENING[O_TEAMS[move.capturedColor]][move.from+OFFSETS[curTurn][0]];
+        }
+    }
+    if (move.moved == QUEEN) {
+        score -= ENDGAME_CENTRAL_OR_CENTRAL_OPENING_MIDDLEGAME_QUEEN_PST[move.from];
+        score += ENDGAME_CENTRAL_OR_CENTRAL_OPENING_MIDDLEGAME_QUEEN_PST[move.to];
+        if (IS_INFILTRATING_PIECE[O_TEAMS[curTurn]][move.to]   == 1 &&
+            IS_INFILTRATING_PIECE[O_TEAMS[curTurn]][move.from] == 0) {
+            score += 175;
+        } else if (IS_INFILTRATING_PIECE[O_TEAMS[curTurn]][move.to]   == 0 &&
+                   IS_INFILTRATING_PIECE[O_TEAMS[curTurn]][move.from] == 1) {
+            score -= 175;
+        }
+    }
+    if (move.capturedPiece == QUEEN) {
+        score += ENDGAME_CENTRAL_OR_CENTRAL_OPENING_MIDDLEGAME_QUEEN_PST[move.to];
+        if (IS_INFILTRATING_PIECE[O_TEAMS[curTurn]][move.to] == 1) {
+            score += 175;
+        }
     }
     return score;
 }
@@ -180,169 +216,90 @@ void Position::removePiece(int square) {
 bool isOpponentsPiece(const Position& pos, int square, int color) {
     return !(pos.colorMailbox[square] == color || pos.colorMailbox[square] == PARTNERS[color] || pos.colorMailbox[square] == 0);
 }
-int Position::getStaticEvalNew() {
-    int score = 0;
-    // int pieceCounter[5] = { 0, 0, 0, 0, 0 };
-    // int bishopCounter[5] = { 0, 0, 0, 0, 0 };
-    // int lightSquaredBishopCounter[5] = { 0, 0, 0, 0, 0 };
-    // int darkSquaredBishopCounter[5] = { 0, 0, 0, 0, 0 };
-    // for (int square = 4; square < 220; ++square) {
-    //     if (isInvalidSquare(square)) continue;
-    //     if (pieceMailbox[square] == PIECE_ZERO) continue;
-    //     if (pieceMailbox[square] != PAWN) {
-    //         for (int start = 0; start < OFFSETS_NUM[pieceMailbox[square] + 3]; ++start) {
-    //             int increment = OFFSETS[pieceMailbox[square] + 3][start];
-    //             for (int n = square + increment; ; n += increment) {
-    //                 if (isInvalidSquare(n)) break;
-    //                 if (pieceMailbox[n] != PIECE_ZERO) {
-    //                     if (!isOpponentsPiece(n, colorMailbox[square])) {
-    //                         if (pieceMailbox[n] == PAWN && pieceMailbox[square] == KING) {
-    //                             score += getRelativeScore(evalConfig.pawnShieldPresent, colorMailbox[square]);
-    //                             if (isSquareAttacked(n, colorMailbox[square])) {
-    //                                 score -= getRelativeScore(evalConfig.pawnShieldAttacked, colorMailbox[square]);
-    //                             }
-    //                         }
-    //                     }
-    //                     break;
-    //                 }
-    //                 score += getRelativeScore(mobilityScores[pieceMailbox[square]], colorMailbox[square]);
-    //                 if (pieceMailbox[square] == KNIGHT || pieceMailbox[square] == KING) break;
-    //             }
-    //         }
-    //     }
-    //     if (pieceMailbox[square] == KNIGHT) {
-    //         if (IS_CENTRAL_PIECE[square] == 1) {
-    //             score += getRelativeScore(evalConfig.centralKnightPenalty, colorMailbox[square]);
-    //         }
-    //         if (IS_BACK_RANK_PIECE[square] == 1) {
-    //             score += getRelativeScore(-50, colorMailbox[square]);
-    //         }
-    //     }
-    //     if (pieceMailbox[square] == BISHOP) {
-    //         if (IS_CENTRAL_PIECE[square] == 1) {
-    //             score += getRelativeScore(evalConfig.centralBishopPenalty, colorMailbox[square]);
-    //         }
-    //         if (IS_BACK_RANK_PIECE[square] == 1) {
-    //             score += getRelativeScore(-75, colorMailbox[square]);
-    //         }
-    //     }
-    //     if (pieceMailbox[square] == QUEEN) {
-    //         if (IS_CENTRAL_PIECE[square] == 1) {
-    //             score += getRelativeScore(evalConfig.centralQueenBonus, colorMailbox[square]);
-    //         }
-    //         if (IS_INFILTRATING_PIECE[TEAMS[colorMailbox[square]]][square] == 1) {
-    //             score += getRelativeScore(evalConfig.infilQueen, colorMailbox[square]);
-    //         }
-    //         if (IS_BACK_RANK_PIECE[square] == 1) {
-    //             score += getRelativeScore(-50, colorMailbox[square]);
-    //         }
-    //     }
-    //     if (pieceMailbox[square] != PAWN && pieceMailbox[square] != KING) pieceCounter[colorMailbox[square]]++;
-    //     if (pieceMailbox[square] == BISHOP) {
-    //         bishopCounter[colorMailbox[square]]++;
-    //         if (isLightSquared(square)) {
-    //             lightSquaredBishopCounter[colorMailbox[square]]++;
-    //         }
-    //         if (isDarkSquared(square)) {
-    //             darkSquaredBishopCounter[colorMailbox[square]]++;
-    //         }
-    //     }
-    // }
-    // for (int color = 1; color <= 4; ++color) {
-    //     score += getRelativeScore(materialImbalance[pieceCounter[color] < 9 ? pieceCounter[color] : 8], color);
-    //     if (bishopCounter[color] >= 2) score += getRelativeScore(evalConfig.sameColoredBishopPair, color);
-    //     if (bishopCounter[color] >= 1 && bishopCounter[PARTNERS[color]] >= 1) {
-    //         if (lightSquaredBishopCounter[color] >= 1 && darkSquaredBishopCounter[PARTNERS[color]]) {
-    //             score += getRelativeScore(evalConfig.oppositeBishopPair, color);
-    //         }
-    //         if (lightSquaredBishopCounter[PARTNERS[color]] >= 1 && darkSquaredBishopCounter[color]) {
-    //             score += getRelativeScore(evalConfig.oppositeBishopPair, color);
-    //         }
-    //     }
-    // }
-    return posScore + getRelativeScore(score, curTurn);
+std::pair<int, int> getSmallestAttacker(const Position& pos, int square, int color) {
+    int smallestAttacker = 7;
+    int attackerLocation = -1;
+    for (int start = 0; start < OFFSETS_NUM[10]; ++start) {
+        int increment = OFFSETS[10][start];
+        for (int n = square + increment; ; n += increment) {
+            if (isInvalidSquare(n)) {
+                break;
+            }
+            int pie = pos.pieceMailbox[n];
+            if (pie != PIECE_ZERO) {
+                if (isOpponentsPiece(pos, n, color)) {
+                    if (pie == PAWN && n == square + increment) {
+                        if ((pos.colorMailbox[n] == RED && (increment == 15 || increment == 17)) ||
+                            (pos.colorMailbox[n] == BLUE && (increment == 15 || increment == -17)) ||
+                            (pos.colorMailbox[n] == YELLOW && (increment == -15 || increment == -17)) ||
+                            (pos.colorMailbox[n] == GREEN && (increment == -15 || increment == 17))) {
+                            return { PAWN, n };
+                        }
+                    }
+                    if ((abs(increment) == 16 || abs(increment) == 1) &&
+                        (pie == ROOK || pie == QUEEN || (pie == KING && n == square + increment))) {
+                        if (pie < smallestAttacker) {
+                            smallestAttacker = pie;
+                            attackerLocation = n;
+                        }
+                        break;
+                    }
+                    if ((abs(increment) == 15 || abs(increment) == 17) &&
+                        (pie == BISHOP || pie == QUEEN || (pie == KING && n == square + increment))) {
+                        if (pie < smallestAttacker) {
+                            smallestAttacker = pie;
+                            attackerLocation = n;
+                        }
+                        break;
+                    }
+                    if ((abs(increment) == 18 || abs(increment) == 14 ||
+                         abs(increment) == 31 || abs(increment) == 33) && pie == KNIGHT) {
+                        if (pie < smallestAttacker) {
+                            smallestAttacker = pie;
+                            attackerLocation = n;
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+            if ((abs(increment) == 18 || abs(increment) == 14 ||
+                 abs(increment) == 31 || abs(increment) == 33)) break;
+        }
+    }
+    if (smallestAttacker == 7) {
+        return { -1, -1 };
+    }
+    return { smallestAttacker, attackerLocation };
 }
-int Position::getStaticEval() {
+int getEval(const Position& pos) {
     int score = 0;
-    // int pieceCounter[5] = { 0, 0, 0, 0, 0 };
-    // int bishopCounter[5] = { 0, 0, 0, 0, 0 };
-    // int lightSquaredBishopCounter[5] = { 0, 0, 0, 0, 0 };
-    // int darkSquaredBishopCounter[5] = { 0, 0, 0, 0, 0 };
-    // for (int square = 4; square < 220; ++square) {
-    //     if (isInvalidSquare(square)) continue;
-    //     if (pieceMailbox[square] == PIECE_ZERO) continue;
-    //     if (pieceMailbox[square] != PAWN) {
-    //         for (int start = 0; start < OFFSETS_NUM[pieceMailbox[square] + 3]; ++start) {
-    //             int increment = OFFSETS[pieceMailbox[square] + 3][start];
-    //             for (int n = square + increment; ; n += increment) {
-    //                 if (isInvalidSquare(n)) break;
-    //                 if (pieceMailbox[n] != PIECE_ZERO) {
-    //                     if (!isOpponentsPiece(n, colorMailbox[square])) {
-    //                         if (pieceMailbox[n] == PAWN && pieceMailbox[square] == KING) {
-    //                             score += getRelativeScore(evalConfig.pawnShieldPresent, colorMailbox[square]);
-    //                             if (isSquareAttacked(n, colorMailbox[square])) {
-    //                                 score -= getRelativeScore(evalConfig.pawnShieldAttacked, colorMailbox[square]);
-    //                             }
-    //                         }
-    //                     }
-    //                     break;
-    //                 }
-    //                 score += getRelativeScore(mobilityScores[pieceMailbox[square]], colorMailbox[square]);
-    //                 if (pieceMailbox[square] == KNIGHT || pieceMailbox[square] == KING) break;
-    //             }
-    //         }
-    //     }
-    //     if (pieceMailbox[square] == KNIGHT) {
-    //         if (IS_CENTRAL_PIECE[square] == 1) {
-    //             score += getRelativeScore(evalConfig.centralKnightPenalty, colorMailbox[square]);
-    //         }
-    //         if (IS_BACK_RANK_PIECE[square] == 1) {
-    //             score += getRelativeScore(-50, colorMailbox[square]);
-    //         }
-    //     }
-    //     if (pieceMailbox[square] == BISHOP) {
-    //         if (IS_CENTRAL_PIECE[square] == 1) {
-    //             score += getRelativeScore(evalConfig.centralBishopPenalty, colorMailbox[square]);
-    //         }
-    //         if (IS_BACK_RANK_PIECE[square] == 1) {
-    //             score += getRelativeScore(-75, colorMailbox[square]);
-    //         }
-    //     }
-    //     if (pieceMailbox[square] == QUEEN) {
-    //         if (IS_CENTRAL_PIECE[square] == 1) {
-    //             score += getRelativeScore(evalConfig.centralQueenBonus, colorMailbox[square]);
-    //         }
-    //         if (IS_INFILTRATING_PIECE[TEAMS[colorMailbox[square]]][square] == 1) {
-    //             score += getRelativeScore(evalConfig.infilQueen, colorMailbox[square]);
-    //         }
-    //         if (IS_BACK_RANK_PIECE[square] == 1) {
-    //             score += getRelativeScore(-50, colorMailbox[square]);
-    //         }
-    //     }
-    //     if (pieceMailbox[square] != PAWN && pieceMailbox[square] != KING) pieceCounter[colorMailbox[square]]++;
-    //     if (pieceMailbox[square] == BISHOP) {
-    //         bishopCounter[colorMailbox[square]]++;
-    //         if (isLightSquared(square)) {
-    //             lightSquaredBishopCounter[colorMailbox[square]]++;
-    //         }
-    //         if (isDarkSquared(square)) {
-    //             darkSquaredBishopCounter[colorMailbox[square]]++;
-    //         }
-    //     }
-    // }
-    // for (int color = 1; color <= 4; ++color) {
-    //     score += getRelativeScore(materialImbalance[pieceCounter[color] < 9 ? pieceCounter[color] : 8], color);
-    //     if (bishopCounter[color] >= 2) score += getRelativeScore(evalConfig.sameColoredBishopPair, color);
-    //     if (bishopCounter[color] >= 1 && bishopCounter[PARTNERS[color]] >= 1) {
-    //         if (lightSquaredBishopCounter[color] >= 1 && darkSquaredBishopCounter[PARTNERS[color]]) {
-    //             score += getRelativeScore(evalConfig.oppositeBishopPair, color);
-    //         }
-    //         if (lightSquaredBishopCounter[PARTNERS[color]] >= 1 && darkSquaredBishopCounter[color]) {
-    //             score += getRelativeScore(evalConfig.oppositeBishopPair, color);
-    //         }
-    //     }
-    // }
-    return posScore + getRelativeScore(score, curTurn);
+    int pieceCounter[5] = { 0, 0, 0, 0, 0 };
+    for (int square = 4; square < 220; ++square) {
+        if (isInvalidSquare(square)) continue;
+        if (pos.pieceMailbox[square] == PIECE_ZERO) continue;
+        for (int start = 0; start < OFFSETS_NUM[pos.pieceMailbox[square] + 3]; ++start) {
+            int increment = OFFSETS[pos.pieceMailbox[square] + 3][start];
+            for (int n = square + increment; ; n += increment) {
+                if (isInvalidSquare(n)) break;
+                if (pos.pieceMailbox[n] != PIECE_ZERO) {
+                    break;
+                }
+                score += getRelativeScore(MOBILITY_SCORES_NEW[pos.pieceMailbox[square]], pos.colorMailbox[square]);
+                if (pos.pieceMailbox[square] == KNIGHT || pos.pieceMailbox[square] == KING) break;
+            }
+        }
+        if (pos.pieceMailbox[square] != PAWN && pos.pieceMailbox[square] != KING) pieceCounter[pos.colorMailbox[square]]++;
+    }
+    for (int col = 1; col <= 4; ++col) {
+        if (pieceCounter[col] == 0) {
+            score += getRelativeScore(NO_PIECES_LEFT_PENALTY, col);
+        }
+        if (pieceCounter[col] == 1) {
+            score += getRelativeScore(ONE_PIECE_LEFT_PENALTY, col);
+        }
+    }
+    return pos.posScore + getRelativeScore(score, pos.curTurn);
 }
 bool inCheck(const Position& pos, int color) {
     return isSquareAttacked(pos, pos.kingTracker[color], color);
@@ -483,12 +440,33 @@ size_t allocateMoves(const Position& pos, int ply) {
 void getAllocatedMove(uint64_t& encodedMove, int ply, int curIndex) {
     encodedMove = allocatedMoves[ply][curIndex];
 }
+void clearAllocatedMoves() {
+    for (int h = 0; h < MAX_MOVES; ++h) {
+        for (int w = 4; w < MAX_MOVES; ++w) {
+            allocatedMoves[h][w] = INVALID_DATA;
+        }
+    }
+}
+GamePhase getCurrentGamePhase() {
+    return curGamePase;
+}
 int Position::getMaterialScore() {
-    int score = 0;
+    bool hasAtLeastOneQueen = false;
+    int score = 0, pieceCounter = 0;
     for (int square = 4; square < 220; ++square) {
         if (isInvalidSquare(square)) continue;
         if (pieceMailbox[square] == PIECE_ZERO) continue;
-        score += getRelativeScore(MATERIAL_SCORES[pieceMailbox[square]], colorMailbox[square]);
+        score += getRelativeScore(MATERIAL_SCORES_MG[pieceMailbox[square]], colorMailbox[square]);
+        if (pieceMailbox[square] != PAWN && pieceMailbox[square] != KING) pieceCounter++;
+        if (pieceMailbox[square] == QUEEN) hasAtLeastOneQueen = true;
+    }
+    if ((pieceCounter < 9  &&  hasAtLeastOneQueen) ||
+        (pieceCounter < 17 && !hasAtLeastOneQueen)) {
+        curGamePase = ENDGAME;
+    } else if (pieceCounter < 28) {
+        curGamePase = MIDDLEGAME;
+    } else {
+        curGamePase = OPENING;
     }
     return getRelativeScore(score, curTurn);
 }
@@ -496,19 +474,13 @@ std::string getSanMove(Move move) {
     if (move.moveFlag & CASTLE_OOO) return "O-O-O";
     if (move.moveFlag & CASTLE_OO) return "O-O";
     char seperator = '-';
-    if (move.moveFlag & CAPTURE || move.moveFlag & PROMOTION_CAPTURE || move.moveFlag & EP_CAPTURE) {
-        seperator = 'x';
-    }
+    if (move.moveFlag & CAPTURE || move.moveFlag & PROMOTION_CAPTURE || move.moveFlag & EP_CAPTURE) seperator = 'x';
     std::string sanMove = "";
-    if (move.moved != PAWN) {
-        sanMove.push_back(PIECE_LETTERS[move.moved]);
-    }
+    if (move.moved != PAWN) sanMove.push_back(PIECE_LETTERS[move.moved]);
     sanMove.push_back(LETTER_COORDINATES[move.from]);
     sanMove += NUMBER_COORDINATES[move.from];
     sanMove.push_back(seperator);
-    if (move.capturedPiece != PAWN && seperator == 'x') {
-        sanMove.push_back(PIECE_LETTERS[move.capturedPiece]);
-    }
+    if (move.capturedPiece != PAWN && seperator == 'x') sanMove.push_back(PIECE_LETTERS[move.capturedPiece]);
     sanMove.push_back(LETTER_COORDINATES[move.to]);
     sanMove += NUMBER_COORDINATES[move.to];
     return sanMove;

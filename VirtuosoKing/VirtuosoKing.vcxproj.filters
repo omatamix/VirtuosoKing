@@ -36,9 +36,6 @@
     <ClCompile Include="tt.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="movepicker.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="parser.h">
@@ -57,9 +54,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="tt.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="movepicker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

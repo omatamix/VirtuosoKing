@@ -44,6 +44,7 @@ public:
         -1, -1, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1, -1, -1,
     };
     int kingsTracker[5] = { 0, 0, 0, 0, 0, };
+    void getSqaures(int& square, int& other, std::string uciMove);
     void parseFen(std::string fen);
     void initParser();
 private:

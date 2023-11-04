@@ -112,7 +112,6 @@ int main(int argc, char** argv) {
                 timeParams.allotment = PIECE_ZERO;
             } else if (input.find("movetime") != std::string::npos && inputVector.size() > 2) {
                 timeParams.searchMode = MOVETIME;
-                timeParams.isShortSearch = false;
                 it = find(inputVector.begin(), inputVector.end(), "movetime");
                 it++;
                 timeParams.allotment = std::stoi(*it);

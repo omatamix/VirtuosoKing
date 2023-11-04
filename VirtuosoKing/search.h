@@ -77,7 +77,6 @@ struct TimeParams {
 	int allotment;
 	int maxNodes;
 	bool limitNodes = false;
-	bool isShortSearch = false;
 };
 struct SearchStackInfo {
 	int ply;

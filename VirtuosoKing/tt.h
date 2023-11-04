@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdint>
 #include <vector>
+constexpr int VALUE_NONE = -321114;
 enum ScoreBound {
     EXACT,      // The score is exact.
     UPPERBOUND, // The score is an upper bound.
@@ -12,7 +13,7 @@ struct HashTableEntry {
     int depth = 0;            // Depth of the search that resulted in this entry.
     uint64_t move = 0;        // The move associated with this entry.
     int score = 0;            // The score of the position.
-    int eval = -321114;       // Evaluation of the position without search.
+    int eval = VALUE_NONE;    // Evaluation of the position without search.
     ScoreBound bound = EXACT; // The type of score bound.
     int isPv = 0;             // Indicates if this entry is on the principal variation.
     unsigned generation = 0;  // Generation or timestamp for entry freshness.

@@ -426,28 +426,28 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
                   : (stack - 4)->staticEval != -321114 ? stack->staticEval > (stack - 4)->staticEval
                   : true;
     }
-    // Preform razoring to reduce search space.
-    if (sEval < alpha - 400 - (250 - 200 * ((stack + 1)->cutoffCnt > 3)) * depth * depth) {
-        int value = qsearch(pos, stack, alpha, beta, MAX_QSEARCH_PLY);
-        if (value < alpha) return value;
-    }
-    // Preform futility pruning.
-    if (!is_pv && !tt_pv && depth <= 8 && sEval >= beta + depth * FUTILITY_MARGIN && sEval >= beta && alpha < MATE_THRESHOLD) {
-        return sEval;
-    }
-    // Preform null-move pruning.
-    if (nullMoveAllowed && sEval >= beta) {
-        // Find reduction.
-        int r = std::min(depth / 3 + 2, depth);
-        // Make the null move.
-        HistoryNullMove nmHist = pos.doNullMove();
-        int nullScore = -pvSearch(pos, stack + 1, depth - r, -beta, -beta + 1, &line, false, !is_cut, false);
-        pos.undoNullMove(nmHist);
-        if (nullScore >= beta) {
-            transpositionTable->save(posHash, depth, INVALID_DATA, beta, sEval, LOWERBOUND, is_pv);
-            return beta; // Apply null-move pruning.
-        }
-    }
+    // // Preform razoring to reduce search space.
+    // if (sEval < alpha - 400 - (250 - 200 * ((stack + 1)->cutoffCnt > 3)) * depth * depth) {
+    //     int value = qsearch(pos, stack, alpha, beta, MAX_QSEARCH_PLY);
+    //     if (value < alpha) return value;
+    // }
+    // // Preform futility pruning.
+    // if (!is_pv && !tt_pv && depth <= 8 && sEval >= beta + depth * FUTILITY_MARGIN && sEval >= beta && alpha < MATE_THRESHOLD) {
+    //     return sEval;
+    // }
+    // // Preform null-move pruning.
+    // if (nullMoveAllowed && sEval >= beta) {
+    //     // Find reduction.
+    //     int r = std::min(depth / 3 + 2, depth);
+    //     // Make the null move.
+    //     HistoryNullMove nmHist = pos.doNullMove();
+    //     int nullScore = -pvSearch(pos, stack + 1, depth - r, -beta, -beta + 1, &line, false, !is_cut, false);
+    //     pos.undoNullMove(nmHist);
+    //     if (nullScore >= beta) {
+    //         transpositionTable->save(posHash, depth, INVALID_DATA, beta, sEval, LOWERBOUND, is_pv);
+    //         return beta; // Apply null-move pruning.
+    //     }
+    // }
     // Moves loop.
     movesLoop:
     int movesSearched = 0, movesFound = 0, quietMovesFound = 0;

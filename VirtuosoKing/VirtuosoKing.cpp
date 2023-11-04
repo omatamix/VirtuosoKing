@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
     parser.initParser();
     Position basePos;
     basePos.initBaseGlobalVar();
+    Search search;
     while (getline(std::cin, input)) {
         inputVector = split(input, ' ');
         std::cin.clear();
@@ -134,7 +135,6 @@ int main(int argc, char** argv) {
                 timeParams.searchMode = DEPTH;
                 timeParams.allotment = MAX_SEARCH_DEPTH;
             }
-            Search search;
             stopSignal = isStop = false;
             if (searchThread.joinable()) searchThread.join();
             searchThread = std::thread(&Search::getBestMove, &search, basePos, timeParams);
@@ -160,8 +160,14 @@ int main(int argc, char** argv) {
                     if (hashSize < MIN_TT_SIZE) hashSize = MIN_TT_SIZE;
                     if (hashSize > MAX_TT_SIZE) hashSize = MAX_TT_SIZE;
                     setHashSize(hashSize);
+                    search.initTTTable();
                 } else if (inputVector.at(2) == "ponder") {
                     // do nothing
+                } else if (inputVector.at(2) == "style") {
+                    size_t hashSize = static_cast<size_t>(std::stoi(inputVector.at(4)));
+                    if (hashSize < MIN_TT_SIZE) hashSize = MIN_TT_SIZE;
+                    if (hashSize > MAX_TT_SIZE) hashSize = MAX_TT_SIZE;
+                    setHashSize(hashSize);
                 } else std::cout << "info string Invalid option." << std::endl;
             }
         }

@@ -162,12 +162,13 @@ int main(int argc, char** argv) {
     return 0;
 };
 void setFenToSearch(std::string fen, Parser& parser, Position& basePos) {
-    for (int i = 0; i < 224; ++i) parser.pieceMailbox[i] = BASE_MAILBOX[i];
-    for (int i = 0; i < 224; ++i) parser.colorMailbox[i] = BASE_MAILBOX[i];
-    for (int i = 0; i < 5; ++i) parser.epSqrs[i] = 0;
-    for (int i = 0; i < 2; ++i)
-        for (int k = 0; k < 5; ++k) parser.cstSqrs[i][k] = false;
-    for (int i = 0; i < 5; ++i) parser.kingsTracker[i] = 0;
+    std::copy(std::begin(BASE_MAILBOX), std::end(BASE_MAILBOX), std::begin(parser.pieceMailbox));
+    std::copy(std::begin(BASE_MAILBOX), std::end(BASE_MAILBOX), std::begin(parser.colorMailbox));
+    std::fill(std::begin(parser.epSqrs), std::end(parser.epSqrs), 0);
+    for (auto& cstSqr : parser.cstSqrs) {
+        std::fill(std::begin(cstSqr), std::end(cstSqr), false);
+    }
+    std::fill(std::begin(parser.kingsTracker), std::end(parser.kingsTracker), 0);
     parser.parseFen(fen);
     basePos.setPosData(parser.col2Mve, parser.colorMailbox, parser.pieceMailbox, parser.epSqrs,
         parser.cstSqrs, parser.kingsTracker, 0, true);

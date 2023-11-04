@@ -460,26 +460,30 @@ int Position::getMaterialScore() {
     return getRelativeScore(score, curTurn);
 }
 std::string getSanMove(Move move) {
+    std::string sanMove;
     if (move.moveFlag & CASTLE_OOO) return "O-O-O";
     if (move.moveFlag & CASTLE_OO) return "O-O";
-    char seperator = '-';
-    if (move.moveFlag & CAPTURE || move.moveFlag & PROMOTION_CAPTURE || move.moveFlag & EP_CAPTURE) seperator = 'x';
-    std::string sanMove = "";
-    if (move.moved != PAWN) sanMove.push_back(PIECE_LETTERS[move.moved]);
-    sanMove.push_back(LETTER_COORDINATES[move.from]);
+    char separator = (move.moveFlag & (CAPTURE | PROMOTION_CAPTURE | EP_CAPTURE)) ? 'x' : '-';
+    if (move.moved != PAWN) {
+        sanMove += PIECE_LETTERS[move.moved];
+    }
+    sanMove += LETTER_COORDINATES[move.from];
     sanMove += NUMBER_COORDINATES[move.from];
-    sanMove.push_back(seperator);
-    if (move.capturedPiece != PAWN && seperator == 'x') sanMove.push_back(PIECE_LETTERS[move.capturedPiece]);
-    sanMove.push_back(LETTER_COORDINATES[move.to]);
+    sanMove += separator;
+    sanMove += LETTER_COORDINATES[move.to];
     sanMove += NUMBER_COORDINATES[move.to];
+    if (move.moveFlag & PROMOTION) {
+        sanMove += "=";
+        sanMove += PIECE_LETTERS[move.promotion];
+    }
     return sanMove;
 }
 std::string getUciMove(Move move) {
-    std::string uciMove = "";
-    uciMove.push_back(LETTER_COORDINATES[move.from]);
-    uciMove += NUMBER_COORDINATES[move.from];
-    uciMove.push_back(LETTER_COORDINATES[move.to]);
-    uciMove += NUMBER_COORDINATES[move.to];
+    std::string uciMove = LETTER_COORDINATES[move.from] + NUMBER_COORDINATES[move.from]
+                        + LETTER_COORDINATES[move.to]   + NUMBER_COORDINATES[move.to];
+    if (move.moveFlag & PROMOTION) {
+        uciMove += PIECE_LETTERS[move.promotion];
+    }
     return uciMove;
 }
 void printBoard(Position pos) {

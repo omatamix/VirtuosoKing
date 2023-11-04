@@ -12,13 +12,11 @@
 #include "search.h"
 #include "tt.h"
 #include "eval.h"
-std::unique_ptr<TranspositionTable> transpositionTable;
-std::unique_ptr<TranspositionTable> transpositionTableTester;
 std::atomic<bool> isStop(true);
 std::atomic<bool> stopSignal(true);
+std::unique_ptr<TranspositionTable> transpositionTable;
 void initTranspositionTable() {
     transpositionTable = std::make_unique<TranspositionTable>(MAX_TT_SIZE);
-    transpositionTableTester = std::make_unique<TranspositionTable>(MAX_TT_SIZE);
 }
 uint64_t transpositionRandTable[5][224][24];
 void initTranspositionKeyHandler() {
@@ -37,10 +35,6 @@ int lmrReductions[MAX_MOVES][MAX_MOVES];
 int currentPly = 0;
 int currentDepth = 0;
 int extensionDepth = 0;
-int seeMovePruningApplied = 0;
-int lmrReductionsApplied = 0;
-int lmrReductionsResearched = 0;
-static bool runTesterCodeNow = false;
 static int moveHistoryScores[224][224];
 static int butterflyTable[224][224];
 static uint64_t captureKillers[MAX_MOVES + 1];
@@ -456,7 +450,6 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
     }
     currentPly = stack->ply;
     currentDepth = depth;
-    runTesterCodeNow = isTester;
     int movesFiltered = 0, cutoffsOccured = 0;
     int nodesCut = 0;
     std::sort(moves, moves + moveSize, &Search::compareMoves);

@@ -132,10 +132,7 @@ HistoryNullMove Position::doNullMove() {
         enpassants[3],
         enpassants[4],
     };
-    enpassants[1] = 0;
-    enpassants[2] = 0;
-    enpassants[3] = 0;
-    enpassants[4] = 0;
+    std::fill(std::begin(enpassants) + 1, std::begin(enpassants) + 5, 0);
     curTurn = nextColor(curTurn);
     posScore = -posScore;
     return nullHistory;

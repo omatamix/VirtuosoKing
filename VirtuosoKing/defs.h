@@ -1,5 +1,6 @@
 #pragma once
 #pragma warning(disable : 26812)
+#include <algorithm>
 #include <chrono>
 #include <string>
 typedef int Depth;

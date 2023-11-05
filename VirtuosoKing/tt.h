@@ -6,8 +6,9 @@
 constexpr int VALUE_NONE = -321114;
 constexpr size_t MIN_TT_SIZE = 160;
 constexpr size_t MAX_TT_SIZE = 10000000;
-constexpr size_t DEFAULT_TT_SIZE = 500000;
+constexpr size_t DEFAULT_TT_SIZE = 300000;
 enum ScoreBound {
+    BOUND_NONE, // Indicates this entry is niether bound.
     EXACT,      // The score is exact.
     UPPERBOUND, // The score is an upper bound.
     LOWERBOUND, // The score is a lower bound.

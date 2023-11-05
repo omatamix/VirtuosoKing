@@ -50,6 +50,8 @@ int main(int argc, char** argv) {
             std::cout << "readyok" << std::endl;
         } else if (input == "ucinewgame") {
             setFenToSearch(BASE_FEN, parser, basePos);
+        } else if (input == "cleardata") {
+            clearTTTableData();
         } else if (input.substr(0, 8) == "position") {
             std::string fenToRun = "";
             if (input.find("fen") != std::string::npos) {

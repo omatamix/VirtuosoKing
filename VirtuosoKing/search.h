@@ -85,6 +85,7 @@ struct SearchStackInfo {
 	int cutoffCnt = 0;
 	bool ttPv = false;
 };
+void clearTTTableData();
 void startPonder();
 void stopPonder();
 void setHashSize(size_t hashSizeToSet);

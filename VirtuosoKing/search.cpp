@@ -65,6 +65,10 @@ void resetKillers() {
         captureKillers[ply] = mateKillers[ply] = INVALID_DATA;
     }
 }
+void clearTTTableData() {
+    transpositionTable->clear();
+    resetKillers();
+}
 void clearHistoryScores(bool decayScores) {
     for (int from = 0; from < 224; ++from) {
         for (int to = 0; to < 224; ++to) {
@@ -95,7 +99,8 @@ int Search::see(Position pos, int square) {
     if (piece.first == -1) {
         return 0;
     }
-    Move captureMove{ piece.second, square, QUEEN, CAPTURE, piece.first, pos.pieceMailbox[square], pos.colorMailbox[square], -1 };
+    Move captureMove{ piece.second, square, QUEEN, CAPTURE, piece.first,
+        pos.pieceMailbox[square], pos.colorMailbox[square], -1 };
     History oldMoveData = pos.doMove(captureMove);
     value = captureMove.capturedPiece - see(pos, square);
     pos.undoMove(oldMoveData, captureMove);
@@ -374,6 +379,7 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
     captureKillers[std::min(stack->ply + 2, MAX_MOVES - 2)] = INVALID_DATA;
     (stack + 2)->cutoffCnt = stack->moveCount = 0;
     SearchPV line;
+    int ttValue = VALUE_NONE;
     bool tt_hit = false;
     bool tt_pv = is_pv;
     uint64_t pvMove = INVALID_DATA;
@@ -403,10 +409,11 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
                 }
                 return std::min(beta, std::max(alpha, tte->score));
             }
+            pvMove = tte->move;
         }
-        tt_hit = true;
+        ttValue = tte->score;
         tt_pv = tte->isPv;
-        pvMove = tte->move;
+        tt_hit = true;
     }
     if (depth <= 0) {
         return qsearch(pos, stack, alpha, beta, MAX_QSEARCH_PLY);
@@ -415,24 +422,38 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
     const int currentPlayer = pos.curTurn;
     const bool checked = inCheck(pos, currentPlayer);
     const bool partnerChecked = inCheck(pos, PARTNERS[currentPlayer]);
-    int sEval;
-    stack->staticEval = sEval = getEval(pos);
+    int staticEval;
+    stack->staticEval = staticEval = getEval(pos);
     bool improving;
     if (checked || partnerChecked) {
+        stack->staticEval = staticEval = VALUE_NONE;
         improving = false;
         goto movesLoop;
+    } else if (tt_hit) {
+        stack->staticEval = staticEval = tte->eval;
+        if (staticEval == VALUE_NONE) {
+            stack->staticEval = staticEval = getEval(pos);
+        }
+        if (ttValue != VALUE_NONE && (tte->bound ==
+           (ttValue > staticEval ? LOWERBOUND : UPPERBOUND))) {
+            staticEval = ttValue;
+        }
     } else {
-        improving = (stack - 2)->staticEval != -321114 ? stack->staticEval > (stack - 2)->staticEval
-                  : (stack - 4)->staticEval != -321114 ? stack->staticEval > (stack - 4)->staticEval
-                  : true;
+        stack->staticEval = staticEval = getEval(pos);
+        transpositionTable->save(posHash, depth, INVALID_DATA,
+            VALUE_NONE, staticEval, BOUND_NONE, stack->ttPv);
     }
+    improving = (stack - 2)->staticEval != VALUE_NONE ? stack->staticEval > (stack - 2)->staticEval
+              : (stack - 4)->staticEval != VALUE_NONE ? stack->staticEval > (stack - 4)->staticEval
+              : true;
     // // Preform razoring to reduce search space.
     // if (sEval < alpha - 400 - (250 - 200 * ((stack + 1)->cutoffCnt > 3)) * depth * depth) {
     //     int value = qsearch(pos, stack, alpha, beta, MAX_QSEARCH_PLY);
-    //     if (value < alpha) return value;
+    //  
+    //    if (value < alpha) return value;
     // }
-    // // Preform futility pruning.
-    // if (!is_pv && !tt_pv && depth <= 8 && sEval >= beta + depth * FUTILITY_MARGIN && sEval >= beta && alpha < MATE_THRESHOLD) {
+    // Preform static null-move pruning.
+    // if (depth <= 5 && sEval >= beta + depth * FUTILITY_MARGIN && alpha < MATE_THRESHOLD) {
     //     return sEval;
     // }
     // // Preform null-move pruning.
@@ -444,11 +465,9 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
     //     int nullScore = -pvSearch(pos, stack + 1, depth - r, -beta, -beta + 1, &line, false, !is_cut, false);
     //     pos.undoNullMove(nmHist);
     //     if (nullScore >= beta) {
-    //         transpositionTable->save(posHash, depth, INVALID_DATA, beta, sEval, LOWERBOUND, is_pv);
     //         return beta; // Apply null-move pruning.
     //     }
     // }
-    // Moves loop.
     movesLoop:
     int movesSearched = 0, movesFound = 0, quietMovesFound = 0;
     int bestScore = -MATE_SCORE;
@@ -495,14 +514,14 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
                          (searchedMove.moveFlag & PROMOTION_CAPTURE);
         bool givesCheck = moveOrderChecks[depth][moves[index].curPieceIndex];
         bool isQuiet = !givesCheck && !isCapture;
-        // Preform late-move pruning.
-        if (alpha > -MATE_THRESHOLD && depth <= 8 && // Allow also on PV-nodes.
-            movesSearched >= LMP_TABLE[improving][depth] + (is_pv ? depth : 0)) {
-            pos.undoMove(oldMoveData, searchedMove);
-            continue;
-        }
+        // // Preform late-move pruning.
+        // if (alpha > -MATE_THRESHOLD && depth <= 8 && // Allow also on PV-nodes.
+        //     movesSearched >= LMP_TABLE[improving][depth] + (is_pv ? depth : 0)) {
+        //     pos.undoMove(oldMoveData, searchedMove);
+        //     continue;
+        // }
         // // int seeVal = 0;
-        // // SEE-Move pruning.
+        // SEE-Move pruning.
         // if (isCapture && depth <= 6 && !is_pv && alpha > -MATE_THRESHOLD) {
         //     int seeVal = seeCapture(pos, searchedMove);
         //     if (seeVal < 0) {
@@ -511,22 +530,21 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
         //     }
         // }
         // // Prune moves with low-history scores.
-        // if (isQuiet && !is_pv && !tt_pv && quietMovesFound > 2 && moveHistoryScores[searchedMove.from][searchedMove.to] < 0) {
+        // if (isQuiet && !is_pv && !tt_pv && quietMovesFound > 6 && moveHistoryScores[searchedMove.from][searchedMove.to] <= 0 && alpha > -MATE_THRESHOLD) {
         //     pos.undoMove(oldMoveData, searchedMove);
         //     continue;
         // }
         // Preform futility-pruning at the move level.
-        if (isQuiet && !is_pv && !tt_pv && depth <= 7 && sEval <= alpha - 115 - 90 * depth && alpha > -MATE_THRESHOLD) {
-            pos.undoMove(oldMoveData, searchedMove);
-            continue;
-        }
+        //if (isQuiet && !is_pv && !tt_pv && depth <= 7 && sEval <= alpha - 115 - 90 * depth && alpha > -MATE_THRESHOLD) {
+        //    pos.undoMove(oldMoveData, searchedMove);
+        //    continue;
+        //}
         // // Multi-cut pruning.
-        // if (depth >= MULTI_CUT_REDUCTION && is_cut && movesSearched <= MULTICUT_MAX_MOVES_SEARCHING) {
+        // if (depth >= MULTI_CUT_REDUCTION && is_cut && quietMovesFound <= MULTICUT_MAX_MOVES_SEARCHING && alpha > -MATE_THRESHOLD) {
         //     currScore = -pvSearch(pos, stack + 1, depth - ONE_PLY - MULTI_CUT_REDUCTION, -beta, -beta + 1, &line, false, !is_cut, true);
         //     if (currScore >= beta) {
         //         if (++cutoffsOccured == MULTICUT_CUTOFFS_NEEDED) {
         //             pos.undoMove(oldMoveData, searchedMove);
-        //             transpositionTable->save(posHash, depth, encodedMove, beta, sEval, LOWERBOUND, false);
         //             return beta;
         //         }
         //     }
@@ -544,17 +562,25 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
         if (searchedMove.capturedPiece == KING) {
             currScore = MATE_SCORE - stack->ply;
         } else {
-            int newDepth = depth - ONE_PLY + extend - OAR;
-            if (movesSearched > 1 && depth >= 2 && (!isCapture || !tt_pv || (is_cut && (stack - 1)->moveCount > 1))) {
-                int reduction = lmrReductions[depth][movesSearched];
+            int newDepth = depth - ONE_PLY + extend;
+            int reduction = lmrReductions[depth][movesSearched];
+            if (movesSearched > 1 && depth >= 2 &&
+                (!isCapture || !tt_pv || (is_cut && (stack - 1)->moveCount > 1))) {
                 reduction -= is_pv;
+                if (is_cut) reduction += 2;
                 Depth d = std::clamp(newDepth - reduction, 1, newDepth + 1);
-                currScore = -pvSearch(pos, stack + 1, d, -alpha - 1, -alpha, &line, false, true, true);
+                currScore = -pvSearch(pos, stack + 1, d,
+                    -alpha - 1, -alpha, &line, false, true, true);
             } else if (!is_pv || movesSearched > 1) {
-                currScore = -pvSearch(pos, stack + 1, newDepth, -alpha - 1, -alpha, &line, false, !is_cut, true);
+                if ((!tt_hit || tte->move == INVALID_DATA) && is_cut) {
+                    reduction += 2;
+                }
+                currScore = -pvSearch(pos, stack + 1, newDepth - (reduction > 3),
+                    -alpha - 1, -alpha, &line, false, !is_cut, true);
             }
             if (is_pv && (movesSearched == 1 || currScore > alpha)) {
-                currScore = -pvSearch(pos, stack + 1, newDepth, -beta, -alpha, &line, true, false, true);
+                currScore = -pvSearch(pos, stack + 1, newDepth,
+                    -beta, -alpha, &line, true, false, true);
             }
         }
         pos.undoMove(oldMoveData, searchedMove);
@@ -579,8 +605,8 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
             }
             break;
         } else {
-            // if (hasImprovement && !is_pv && depth > 2 && depth < 5 && beta < 13828 && currScore > -11369) {
-            //     OAR += 2;
+            // if (hasImprovement && depth > 2 && depth < 7 && beta < 13828 && currScore > -11369) {
+            //     depth -= 2;
             // }
         }
         // We found a new best move.
@@ -604,7 +630,7 @@ int Search::pvSearch(Position pos, SearchStackInfo* stack, int depth, int alpha,
     }
     // Update the TT table.
     ScoreBound bound = beta <= alpha ? LOWERBOUND : is_pv && bestMove != INVALID_DATA ? EXACT : UPPERBOUND;
-    transpositionTable->save(posHash, depth, bestMove, alpha, sEval, bound, is_pv);
+    transpositionTable->save(posHash, depth, bestMove, alpha, staticEval, bound, is_pv);
     // Return the best score.
     return alpha;
 }
@@ -725,11 +751,11 @@ int Search::qsearch(Position pos, SearchStackInfo* stack, int alpha, int beta, i
                          (searchedMove.moveFlag & PROMOTION_CAPTURE);
         if (isCapture || (givesCheck && !lastMoveWasCheck)) { // Don't allow two consecutive checks.
             movesSearched++;
-            // if (isCapture && seeCapture(pos, searchedMove) < 0) {
-            //     // Prune bad captures.
-            //     pos.undoMove(oldMoveData, searchedMove);
-            //     continue;
-            // }
+            if (isCapture && seeCapture(pos, searchedMove) < 0) {
+                // Prune bad captures.
+                pos.undoMove(oldMoveData, searchedMove);
+                continue;
+            }
             if (searchedMove.capturedPiece == KING) {
                 currScore = MATE_SCORE - stack->ply; // We are mating by capturing a king.
             } else {
